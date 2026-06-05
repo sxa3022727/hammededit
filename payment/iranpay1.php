@@ -117,11 +117,14 @@ if ($storedAuthority !== '' && !hash_equals($storedAuthority, $authority)) {
 
 $verifyResponse = verifyTetraPay($authority, $hashId);
 if ((string) ($verifyResponse['status'] ?? '') !== '100') {
-    update('Payment_report', 'dec_not_confirmed', json_encode([
-        'gateway' => 'tetrapay',
+    $storedMetadata['last_callback_verify'] = [
+        'at' => date('Y/m/d H:i:s'),
         'error' => 'verify failed',
         'callback' => $payload,
         'verify_response' => $verifyResponse,
+    ];
+    update('Payment_report', 'dec_not_confirmed', json_encode($storedMetadata + [
+        'gateway' => 'tetrapay',
     ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), 'id_order', $paymentReport['id_order']);
 
     tetrapay_json_response(409, [
@@ -151,13 +154,12 @@ $datatextbot = tetrapay_load_payment_texts();
 $setting = select('setting', '*');
 $paymentreports = select('topicid', 'idreport', 'report', 'paymentreport', 'select')['idreport'] ?? null;
 
-update('Payment_report', 'dec_not_confirmed', json_encode([
-    'gateway' => 'tetrapay',
-    'authority' => $authority,
-    'callback' => $payload,
-    'verify_response' => $verifyResponse,
-    'verified_at' => date('Y/m/d H:i:s'),
-], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), 'id_order', $paymentReport['id_order']);
+$storedMetadata['gateway'] = 'tetrapay';
+$storedMetadata['authority'] = $authority;
+$storedMetadata['callback'] = $payload;
+$storedMetadata['verify_response'] = $verifyResponse;
+$storedMetadata['verified_at'] = date('Y/m/d H:i:s');
+update('Payment_report', 'dec_not_confirmed', json_encode($storedMetadata, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), 'id_order', $paymentReport['id_order']);
 
 DirectPayment($paymentReport['id_order'], '../images.jpg');
 

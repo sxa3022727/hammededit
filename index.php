@@ -5907,12 +5907,16 @@ $textonebuy
         if (empty($paymentUrl) && !empty($pay['Authority'])) {
             $paymentUrl = "https://tetra98.com/payment/" . $pay['Authority'];
         }
+        $telegramPaymentUrl = $pay['payment_url_bot'] ?? null;
+        if (empty($telegramPaymentUrl) && !empty($pay['Authority'])) {
+            $telegramPaymentUrl = "https://t.me/Tetra98_bot?start=pay_" . $pay['Authority'];
+        }
         $tetraMetadata = [
             'gateway' => 'tetrapay',
             'authority' => $pay['Authority'],
             'tracking_id' => $pay['tracking_id'] ?? null,
             'payment_url_web' => $pay['payment_url_web'] ?? $paymentUrl,
-            'payment_url_bot' => $pay['payment_url_bot'] ?? null,
+            'payment_url_bot' => $telegramPaymentUrl,
             'amount_rial' => (int) round(((float) $user['Processing_value']) * 10),
             'raw_create_response' => $pay,
         ];
@@ -5920,7 +5924,13 @@ $textonebuy
         $paymentkeyboard = json_encode([
             'inline_keyboard' => [
                 [
-                    ['text' => "پرداخت", 'url' => $paymentUrl]
+                    ['text' => "پرداخت در وبسایت", 'url' => $paymentUrl]
+                ],
+                [
+                    ['text' => "پرداخت در ربات تلگرام", 'url' => $telegramPaymentUrl]
+                ],
+                [
+                    ['text' => "تایید پرداخت", 'callback_data' => "tetrapay_confirm_$randomString"]
                 ]
             ]
         ]);
@@ -6363,6 +6373,147 @@ $textonebuy
         $message_id = sendmessage($from_id, $textstar, $paymentkeyboard, 'HTML');
         updatePaymentMessageId($message_id, $randomString);
     }
+}
+if (preg_match('/^tetrapay_confirm_(\w+)$/', $datain, $dataget)) {
+    $orderId = $dataget[1];
+    $Payment_report = select("Payment_report", "*", "id_order", $orderId, "select");
+    if (!is_array($Payment_report)) {
+        telegram('answerCallbackQuery', [
+            'callback_query_id' => $callback_query_id,
+            'text' => "تراکنش پیدا نشد.",
+            'show_alert' => true,
+            'cache_time' => 5,
+        ]);
+        return;
+    }
+    if ((string) ($Payment_report['id_user'] ?? '') !== (string) $from_id) {
+        telegram('answerCallbackQuery', [
+            'callback_query_id' => $callback_query_id,
+            'text' => "این تراکنش متعلق به شما نیست.",
+            'show_alert' => true,
+            'cache_time' => 5,
+        ]);
+        return;
+    }
+    if (($Payment_report['Payment_Method'] ?? '') !== "Currency Rial 1") {
+        telegram('answerCallbackQuery', [
+            'callback_query_id' => $callback_query_id,
+            'text' => "درگاه این تراکنش معتبر نیست.",
+            'show_alert' => true,
+            'cache_time' => 5,
+        ]);
+        return;
+    }
+    if (($Payment_report['payment_Status'] ?? '') === "paid") {
+        telegram('answerCallbackQuery', [
+            'callback_query_id' => $callback_query_id,
+            'text' => "پرداخت شما قبلا تایید شده است.",
+            'show_alert' => true,
+            'cache_time' => 5,
+        ]);
+        return;
+    }
+    if (($Payment_report['payment_Status'] ?? '') === "expire") {
+        telegram('answerCallbackQuery', [
+            'callback_query_id' => $callback_query_id,
+            'text' => "زمان این تراکنش به پایان رسیده است.",
+            'show_alert' => true,
+            'cache_time' => 5,
+        ]);
+        return;
+    }
+
+    $tetraMetadata = json_decode((string) ($Payment_report['dec_not_confirmed'] ?? ''), true);
+    if (!is_array($tetraMetadata)) {
+        $tetraMetadata = [
+            'authority' => (string) ($Payment_report['dec_not_confirmed'] ?? ''),
+        ];
+    }
+
+    $authority = trim((string) ($tetraMetadata['authority'] ?? ''));
+    if ($authority === '') {
+        telegram('answerCallbackQuery', [
+            'callback_query_id' => $callback_query_id,
+            'text' => "کد پرداخت تتراپی برای این تراکنش پیدا نشد.",
+            'show_alert' => true,
+            'cache_time' => 5,
+        ]);
+        return;
+    }
+
+    $verifyResponse = verifyTetraPay($authority, $Payment_report['id_order']);
+    if ((string) ($verifyResponse['status'] ?? '') !== '100') {
+        $tetraMetadata['last_manual_verify'] = [
+            'at' => date('Y/m/d H:i:s'),
+            'by_user' => $from_id,
+            'verify_response' => $verifyResponse,
+        ];
+        update("Payment_report", "dec_not_confirmed", json_encode($tetraMetadata, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), "id_order", $Payment_report['id_order']);
+
+        telegram('answerCallbackQuery', [
+            'callback_query_id' => $callback_query_id,
+            'text' => "پرداخت شما هنوز از طرف تتراپی تایید نشده است. چند دقیقه بعد دوباره تلاش کنید.",
+            'show_alert' => true,
+            'cache_time' => 5,
+        ]);
+        return;
+    }
+
+    $verifiedAuthority = trim((string) ($verifyResponse['authority'] ?? $verifyResponse['Authority'] ?? ''));
+    $verifiedHashId = trim((string) ($verifyResponse['hash_id'] ?? $verifyResponse['Hash_id'] ?? $verifyResponse['hashid'] ?? ''));
+    if (($verifiedAuthority !== '' && !hash_equals($verifiedAuthority, $authority)) || ($verifiedHashId !== '' && !hash_equals($verifiedHashId, $Payment_report['id_order']))) {
+        $tetraMetadata['last_manual_verify'] = [
+            'at' => date('Y/m/d H:i:s'),
+            'by_user' => $from_id,
+            'error' => 'verified payload mismatch',
+            'verify_response' => $verifyResponse,
+        ];
+        update("Payment_report", "dec_not_confirmed", json_encode($tetraMetadata, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), "id_order", $Payment_report['id_order']);
+
+        telegram('answerCallbackQuery', [
+            'callback_query_id' => $callback_query_id,
+            'text' => "اطلاعات تایید پرداخت با سفارش شما همخوانی ندارد.",
+            'show_alert' => true,
+            'cache_time' => 5,
+        ]);
+        return;
+    }
+
+    $tetraMetadata['manual_confirm'] = [
+        'at' => date('Y/m/d H:i:s'),
+        'by_user' => $from_id,
+        'verify_response' => $verifyResponse,
+    ];
+    update("Payment_report", "dec_not_confirmed", json_encode($tetraMetadata, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), "id_order", $Payment_report['id_order']);
+
+    telegram('answerCallbackQuery', [
+        'callback_query_id' => $callback_query_id,
+        'text' => "پرداخت تایید شد.",
+        'show_alert' => true,
+        'cache_time' => 5,
+    ]);
+
+    DirectPayment($Payment_report['id_order']);
+    $pricecashback = select("PaySetting", "ValuePay", "NamePay", "chashbackiranpay1", "select")['ValuePay'] ?? '0';
+    $Balance_id = select("user", "*", "id", $Payment_report['id_user'], "select");
+    if (is_array($Balance_id) && $pricecashback != "0") {
+        $result = ($Payment_report['price'] * $pricecashback) / 100;
+        $Balance_confrim = intval($Balance_id['Balance']) + $result;
+        update("user", "Balance", $Balance_confrim, "id", $Balance_id['id']);
+        $text_report = sprintf($textbotlang['users']['Discount']['gift-deposit'] ?? 'Cashback: %s', $result);
+        sendmessage($Balance_id['id'], $text_report, null, 'HTML');
+    }
+    if (strlen($setting['Channel_Report'] ?? '') > 0 && is_array($Balance_id)) {
+        $price_format = number_format($Payment_report['price'], 0);
+        telegram('sendmessage', [
+            'chat_id' => $setting['Channel_Report'],
+            'message_thread_id' => $paymentreports,
+            'text' => "TetraPay payment confirmed by user\n\nUser ID: {$Balance_id['id']}\nUsername: @{$Balance_id['username']}\nAmount: {$price_format} Toman\nAuthority: {$authority}\nMethod: Currency Rial 1",
+            'parse_mode' => "HTML"
+        ]);
+    }
+    update("Payment_report", "payment_Status", "paid", "id_order", $Payment_report['id_order']);
+    return;
 }
 if (preg_match('/Confirmpay_user_(\w+)_(\w+)/', $datain, $dataget)) {
     $id_payment = $dataget[1];
