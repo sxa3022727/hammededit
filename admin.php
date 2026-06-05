@@ -453,6 +453,7 @@ if (in_array($text, $textadmin) || $datain == "admin") {
             'starbot_api_base_url' => $Startelegram,
             'starbot_api_key' => $Startelegram,
             'starbot_webhook_secret' => $Startelegram,
+            'star_price_toman' => $Startelegram,
             'gettextiranpay3' => $trnado,
             'gettextiranpay1' => $iranpaykeyboard,
             'gettextaqayepardakht' => $aqayepardakht,
@@ -12194,7 +12195,7 @@ if ($datain == "settimecornday" && $adminrulecheck['rule'] == "administrator") {
         sendmessage($from_id, "❌ آدرس API نامعتبر است.", $backadmin, 'HTML');
         return;
     }
-    update("PaySetting", "ValuePay", rtrim($submittedBaseUrl, '/'), "NamePay", "starbot_api_base_url");
+    setPaySettingValue("starbot_api_base_url", rtrim($submittedBaseUrl, '/'));
     sendmessage($from_id, "✅ آدرس API استاربوت ذخیره شد.", $Startelegram, 'HTML');
     step("home", $from_id);
 } elseif ($text == "🔑 API Key استاربوت" && $adminrulecheck['rule'] == "administrator") {
@@ -12208,7 +12209,7 @@ if ($datain == "settimecornday" && $adminrulecheck['rule'] == "administrator") {
         sendmessage($from_id, "❌ API Key نامعتبر است.", $backadmin, 'HTML');
         return;
     }
-    update("PaySetting", "ValuePay", $submittedApiKey, "NamePay", "starbot_api_key");
+    setPaySettingValue("starbot_api_key", $submittedApiKey);
     sendmessage($from_id, "✅ API Key استاربوت ذخیره شد.", $Startelegram, 'HTML');
     step("home", $from_id);
 } elseif ($text == "🛡 سکرت وبهوک استاربوت" && $adminrulecheck['rule'] == "administrator") {
@@ -12222,8 +12223,21 @@ if ($datain == "settimecornday" && $adminrulecheck['rule'] == "administrator") {
         sendmessage($from_id, "❌ Webhook Secret نامعتبر است.", $backadmin, 'HTML');
         return;
     }
-    update("PaySetting", "ValuePay", $submittedSecret, "NamePay", "starbot_webhook_secret");
+    setPaySettingValue("starbot_webhook_secret", $submittedSecret);
     sendmessage($from_id, "✅ Webhook Secret استاربوت ذخیره شد.", $Startelegram, 'HTML');
+    step("home", $from_id);
+} elseif ($text == "💳 قیمت هر استار" && $adminrulecheck['rule'] == "administrator") {
+    $currentStarPrice = getPaySettingValue('star_price_toman', '5000');
+    sendmessage($from_id, "قیمت هر استار را به تومان ارسال کنید.\n\nنمونه: <code>5000</code>\n\nمقدار فعلی: <code>{$currentStarPrice}</code>", $backadmin, 'HTML');
+    step("star_price_toman", $from_id);
+} elseif ($user['step'] == "star_price_toman") {
+    $submittedStarPrice = str_replace(',', '', trim((string) $text));
+    if (!ctype_digit($submittedStarPrice) || (int) $submittedStarPrice <= 0) {
+        sendmessage($from_id, "❌ قیمت هر استار نامعتبر است.", $backadmin, 'HTML');
+        return;
+    }
+    setPaySettingValue("star_price_toman", $submittedStarPrice);
+    sendmessage($from_id, "✅ قیمت هر استار ذخیره شد.", $Startelegram, 'HTML');
     step("home", $from_id);
 } elseif ($text == "⬇️ حداقل مبلغ استار") {
     sendmessage($from_id, "📌 حداقل مبلغ واریزی را ارسال نمایید", $backadmin, 'HTML');
@@ -13170,4 +13184,3 @@ if ($datain == "settimecornday" && $adminrulecheck['rule'] == "administrator") {
     update("PaySetting", "ValuePay", $text, "NamePay", "marchent_floypay");
     step('home', $from_id);
 }
-

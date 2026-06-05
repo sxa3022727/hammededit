@@ -849,6 +849,15 @@ function getPaySettingValue($name, $default = null)
     return $result['ValuePay'];
 }
 
+function setPaySettingValue($name, $value)
+{
+    global $pdo;
+
+    $valueToStore = normaliseUpdateValue($value);
+    $stmt = $pdo->prepare("INSERT INTO PaySetting (NamePay, ValuePay) VALUES (?, ?) ON DUPLICATE KEY UPDATE ValuePay = ?");
+    return $stmt->execute([(string) $name, $valueToStore, $valueToStore]);
+}
+
 function formatPaymentReportNote($rawNote)
 {
     if ($rawNote === null) {

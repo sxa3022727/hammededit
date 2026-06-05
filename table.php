@@ -924,6 +924,7 @@ try {
         ['starbot_api_key', '0'],
         ['starbot_webhook_secret', '0'],
         ['starbot_fee_on_user', '0'],
+        ['star_price_toman', '5000'],
         ['star_price_usd', '0.016'],
         ['chashbackperfect', '0'],
         ['chashbackaqaypardokht', '0'],

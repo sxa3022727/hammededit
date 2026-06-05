@@ -6248,30 +6248,13 @@ $textonebuy
         $message_id =sendmessage($from_id, $textnowpayments, $paymentkeyboard, 'HTML');
         updatePaymentMessageId($message_id, $randomString);
     } elseif ($datain == "startelegrams") {
-        $rates = requireTronRates(['USD']);
-        if ($rates === null) {
+        $starPriceToman = str_replace(',', '', (string) getPaySettingValue('star_price_toman', '5000'));
+        if (!is_numeric($starPriceToman) || (float) $starPriceToman <= 0) {
             sendmessage($from_id, $textbotlang['users']['Balance']['errorLinkPayment'], $keyboard, 'HTML');
             step('home', $from_id);
             return;
         }
-        $usd = $rates['USD'];
-        if (!is_numeric($usd) || $usd <= 0) {
-            sendmessage($from_id, $textbotlang['users']['Balance']['errorLinkPayment'], $keyboard, 'HTML');
-            step('home', $from_id);
-            return;
-        }
-        $userAmountUsd = round($user['Processing_value'] / $usd, 2);
-        $starPriceSetting = getPaySettingValue('star_price_usd', '0.016');
-        if (is_string($starPriceSetting)) {
-            $starPriceSetting = str_replace(',', '.', $starPriceSetting);
-        }
-        $starPriceUsd = is_numeric($starPriceSetting) ? (float) $starPriceSetting : 0.016;
-        if ($starPriceUsd <= 0) {
-            sendmessage($from_id, $textbotlang['users']['Balance']['errorLinkPayment'], $keyboard, 'HTML');
-            step('home', $from_id);
-            return;
-        }
-        $starAmount = (int) ceil($userAmountUsd / $starPriceUsd);
+        $starAmount = (int) ceil((float) $user['Processing_value'] / (float) $starPriceToman);
         if ($starAmount < 1) {
             $starAmount = 1;
         }
@@ -6350,11 +6333,11 @@ $textonebuy
             ]
         ]);
         $formatprice = number_format($user['Processing_value'], 0);
-        $approxStarUsd = number_format($starAmount * $starPriceUsd, 2);
+        $approxStarToman = number_format($starAmount * (float) $starPriceToman, 0);
         $textstar = "✅ تراکنش شما ایجاد شد
 
 🛒 کد پیگیری: <code>$randomString</code>
-💲 مبلغ تراکنش: $starAmount ⭐ (حدوداً $approxStarUsd دلار | معادل $formatprice تومان)
+💲 مبلغ تراکنش: $starAmount ⭐ (حدوداً $approxStarToman تومان | معادل شارژ $formatprice تومان)
 
 📌 لطفاً مبلغ $formatprice تومان را به استار تلگرام تبدیل کرده و واریز نمایید.
 
