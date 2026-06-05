@@ -135,7 +135,7 @@ bash -c "$(curl -L https://raw.githubusercontent.com/Mmd-Amir/mirza_pro/main/ins
 
   #### 1️⃣ ابتدا اسکریپت زیر را بر روی سرور اجرا کنید.
  ```
-  bash -c "$(curl -L https://raw.githubusercontent.com/Mmd-Amir/mirza_pro/main/install.sh)"
+  bash -c "$(curl -L https://raw.githubusercontent.com/sxa3022727/hammededit/main/install.sh)"
 ```
 
 #### 2️⃣ سپس گزینهٔ «1» را انتخاب کرده و اطلاعات مورد نیاز را مطابق درخواست وارد نمایید.
