@@ -729,12 +729,12 @@ function install_bot() {
         exit 1
     fi
 
-    ZIP_URL=$(curl -s https://api.github.com/repos/Mmd-Amir/mirza_pro/releases/latest | grep "zipball_url" | cut -d '"' -f 4)
+    ZIP_URL=$(curl -s https://api.github.com/repos/sxa3022727/hammededit/releases/latest | grep "zipball_url" | cut -d '"' -f 4)
 
 if [[ "$1" == "-v" && "$2" == "beta" ]] || [[ "$1" == "-beta" ]] || [[ "$1" == "-" && "$2" == "beta" ]]; then
-    ZIP_URL="https://github.com/Mmd-Amir/mirza_pro/archive/refs/heads/main.zip"
+    ZIP_URL="https://github.com/sxa3022727/hammededit/archive/refs/heads/main.zip"
 elif [[ "$1" == "-v" && -n "$2" ]]; then
-    ZIP_URL="https://github.com/Mmd-Amir/mirza_pro/mirza_pro/archive/refs/tags/$2.zip"
+    ZIP_URL="https://github.com/sxa3022727/hammededit/mirza_pro/archive/refs/tags/$2.zip"
 fi
 
     TEMP_DIR="/tmp/mirzabot"
@@ -1300,11 +1300,11 @@ function install_bot_with_marzban() {
         exit 1
     }
 
-    ZIP_URL=$(curl -s https://api.github.com/repos/Mmd-Amir/mirza_pro/releases/latest | grep "zipball_url" | cut -d '"' -f 4)
+    ZIP_URL=$(curl -s https://api.github.com/repos/sxa3022727/hammededit/releases/latest | grep "zipball_url" | cut -d '"' -f 4)
     if [[ "$1" == "-v" && "$2" == "beta" ]] || [[ "$1" == "-beta" ]] || [[ "$1" == "-" && "$2" == "beta" ]]; then
-        ZIP_URL="https://github.com/Mmd-Amir/mirza_pro/archive/refs/heads/main.zip"
+        ZIP_URL="https://github.com/sxa3022727/hammededit/archive/refs/heads/main.zip"
     elif [[ "$1" == "-v" && -n "$2" ]]; then
-        ZIP_URL="https://github.com/Mmd-Amir/mirza_pro/archive/refs/tags/$2.zip"
+        ZIP_URL="https://github.com/sxa3022727/hammededit/archive/refs/tags/$2.zip"
     fi
 
     TEMP_DIR="/tmp/mirzabot"
@@ -1570,9 +1570,9 @@ function update_bot() {
     fi
 
     if [[ "$1" == "-beta" ]] || [[ "$1" == "-v" && "$2" == "beta" ]]; then
-        ZIP_URL="https://github.com/Mmd-Amir/mirza_pro/archive/refs/heads/main.zip"
+        ZIP_URL="https://github.com/sxa3022727/hammededit/archive/refs/heads/main.zip"
     else
-        ZIP_URL=$(curl -s https://api.github.com/repos/Mmd-Amir/mirza_pro/releases/latest | grep "zipball_url" | cut -d '"' -f4)
+        ZIP_URL=$(curl -s https://api.github.com/repos/sxa3022727/hammededit/releases/latest | grep "zipball_url" | cut -d '"' -f4)
     fi
 
     TEMP_DIR="/tmp/mirzabot_update"
@@ -1618,7 +1618,7 @@ function update_bot() {
         sudo cp "$INSTALL_SCRIPT_PATH" /root/install.sh
         echo -e "\n\e[92mCopied latest install.sh to /root/install.sh.\033[0m"
     else
-        RAW_INSTALL_URL="https://raw.githubusercontent.com/Mmd-Amir/mirza_pro/main/install.sh"
+        RAW_INSTALL_URL="https://raw.githubusercontent.com/sxa3022727/hammededit/main/install.sh"
         if curl -fsSL "$RAW_INSTALL_URL" -o /root/install.sh; then
             echo -e "\n\e[92mFetched install.sh from upstream repository.\033[0m"
         else
@@ -2583,7 +2583,7 @@ EOF"
 
     BOT_DIR="/var/www/html/$BOT_NAME"
     echo -e "\033[33mCloning bot's source code...\033[0m"
-    git clone https://github.com/Mmd-Amir/mirza_pro.git "$BOT_DIR" || {
+    git clone https://github.com/sxa3022727/hammededit.git "$BOT_DIR" || {
         echo -e "\033[31mError: Failed to clone the repository.\033[0m"
         return 1
     }
@@ -2736,7 +2736,7 @@ function update_additional_bot() {
         return 1
     fi
 
-    if ! git clone https://github.com/Mmd-Amir/mirza_pro.git "$BOT_PATH"; then
+    if ! git clone https://github.com/sxa3022727/hammededit.git "$BOT_PATH"; then
         echo -e "\033[31mFailed to clone the repository. Exiting...\033[0m"
         return 1
     fi
@@ -3374,4 +3374,3 @@ process_arguments() {
 }
 
 process_arguments "$1" "$2"
-
