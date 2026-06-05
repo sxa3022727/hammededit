@@ -6293,44 +6293,55 @@ $textonebuy
         $Payment_Method = "Star Telegram";
         $stmt->bind_param("sssssss", $from_id, $randomString, $dateacc, $user['Processing_value'], $payment_Status, $Payment_Method, $invoice);
         $stmt->execute();
-        $affilnecurrency = select("PaySetting", "*", "NamePay", "walletaddress", "select")['ValuePay'];
-        $invoiceParams = [
-            'title' => "Buy for Price {$user['Processing_value']}",
-            'description' => "Buy price",
-            'payload' => $randomString,
-            'currency' => "XTR",
-            'prices' => json_encode(array(
-                array(
-                    'label' => "Price",
-                    'amount' => $starAmount
-                )
-            ))
-        ];
-        if (($invoiceParams['currency'] ?? null) === 'XTR') {
-            unset($invoiceParams['provider'], $invoiceParams['provider_token']);
-        }
-        $straCreateLink = telegram('createInvoiceLink', $invoiceParams);
-        if ($straCreateLink['ok'] == false) {
-            $text_error = json_encode($straCreateLink);
+        $starbotPayment = createPayStarBot($starAmount, $randomString, $from_id);
+        if (empty($starbotPayment['success'])) {
+            $text_error = json_encode($starbotPayment, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+            update("Payment_report", "dec_not_confirmed", $text_error, "id_order", $randomString);
             sendmessage($from_id, $textbotlang['users']['Balance']['errorLinkPayment'], $keyboard, 'HTML');
             step('home', $from_id);
-            $ErrorsLinkPayment = "
-خطا در هنگام ساخت فاکتور استار
-✍️ دلیل خطا : $text_error
-            
-آیدی کابر : $from_id
-روش پرداخت : $Payment_Method
-نام کاربری کاربر : @$username";
             if (strlen($setting['Channel_Report'] ?? '') > 0) {
                 telegram('sendmessage', [
                     'chat_id' => $setting['Channel_Report'],
                     'message_thread_id' => $errorreport,
-                    'text' => $ErrorsLinkPayment,
+                    'text' => "StarBot payment link error\n\nUser ID: $from_id\nPayment method: $Payment_Method\nError: $text_error",
                     'parse_mode' => "HTML"
                 ]);
             }
             return;
         }
+        if (isset($starbotPayment['total_toman']) && is_numeric($starbotPayment['total_toman']) && (int) $starbotPayment['total_toman'] < (int) $user['Processing_value']) {
+            $text_error = json_encode([
+                'success' => false,
+                'message' => 'StarBot total_toman is lower than requested balance.',
+                'starbot' => $starbotPayment,
+            ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+            update("Payment_report", "dec_not_confirmed", $text_error, "id_order", $randomString);
+            sendmessage($from_id, $textbotlang['users']['Balance']['errorLinkPayment'], $keyboard, 'HTML');
+            step('home', $from_id);
+            if (strlen($setting['Channel_Report'] ?? '') > 0) {
+                telegram('sendmessage', [
+                    'chat_id' => $setting['Channel_Report'],
+                    'message_thread_id' => $errorreport,
+                    'text' => "StarBot payment amount mismatch\n\nUser ID: $from_id\nPayment method: $Payment_Method\nError: $text_error",
+                    'parse_mode' => "HTML"
+                ]);
+            }
+            return;
+        }
+        $starbotMetadata = [
+            'gateway' => 'starbot',
+            'invoice_token' => $starbotPayment['invoice_token'] ?? null,
+            'order_code' => $starbotPayment['order_code'] ?? null,
+            'stars_count' => $starbotPayment['stars_count'] ?? $starAmount,
+            'total_toman' => $starbotPayment['total_toman'] ?? null,
+            'total_rial' => $starbotPayment['total_rial'] ?? null,
+            'expires_at' => $starbotPayment['expires_at'] ?? null,
+        ];
+        update("Payment_report", "dec_not_confirmed", json_encode($starbotMetadata, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), "id_order", $randomString);
+        $straCreateLink = [
+            'ok' => true,
+            'result' => $starbotPayment['payment_url'],
+        ];
         $paymentkeyboard = json_encode([
             'inline_keyboard' => [
                 [

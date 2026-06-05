@@ -1199,6 +1199,154 @@ function StatusPayment($paymentid)
     curl_close($curl);
     return $response;
 }
+function buildStarBotApiUrl($path)
+{
+    $baseUrl = trim((string) getPaySettingValue('starbot_api_base_url', ''));
+    if ($baseUrl === '' || $baseUrl === '0') {
+        return '';
+    }
+
+    if (!preg_match('~^https?://~i', $baseUrl)) {
+        $baseUrl = 'https://' . ltrim($baseUrl, '/');
+    }
+
+    $baseUrl = rtrim($baseUrl, '/');
+    if (!preg_match('~/api/v1$~', $baseUrl)) {
+        $baseUrl .= '/api/v1';
+    }
+
+    return $baseUrl . '/' . ltrim($path, '/');
+}
+function createPayStarBot($starsCount, $orderId, $userId)
+{
+    global $domainhosts;
+
+    $apiKey = trim((string) getPaySettingValue('starbot_api_key', ''));
+    if ($apiKey === '' || $apiKey === '0') {
+        return [
+            'success' => false,
+            'message' => 'StarBot API key is not configured.',
+        ];
+    }
+
+    $endpoint = buildStarBotApiUrl('/invoice/create');
+    if ($endpoint === '') {
+        return [
+            'success' => false,
+            'message' => 'StarBot API base URL is not configured.',
+        ];
+    }
+
+    $starsCount = filter_var($starsCount, FILTER_VALIDATE_INT, [
+        'options' => ['min_range' => 1],
+    ]);
+    if ($starsCount === false) {
+        return [
+            'success' => false,
+            'message' => 'Invalid StarBot stars count.',
+        ];
+    }
+
+    $host = trim((string) $domainhosts);
+    if ($host === '') {
+        $host = $_SERVER['HTTP_HOST'] ?? '';
+    }
+    if ($host === '') {
+        return [
+            'success' => false,
+            'message' => 'Callback host is not configured.',
+        ];
+    }
+    $callbackBase = $host;
+    if (!preg_match('~^https?://~i', $callbackBase)) {
+        $callbackBase = 'https://' . ltrim($callbackBase, '/');
+    }
+
+    $payload = [
+        'stars_count' => $starsCount,
+        'user_telegram_id' => (int) $userId,
+        'callback_url' => rtrim($callbackBase, '/') . '/payment/starbot.php',
+        'metadata' => (string) $orderId,
+    ];
+
+    $feeOnUser = getPaySettingValue('starbot_fee_on_user', null);
+    if ($feeOnUser !== null && $feeOnUser !== '') {
+        $normalizedFee = strtolower(trim((string) $feeOnUser));
+        if (in_array($normalizedFee, ['1', 'true', 'on', 'yes'], true)) {
+            $payload['fee_on_user'] = true;
+        } elseif (in_array($normalizedFee, ['0', 'false', 'off', 'no'], true)) {
+            $payload['fee_on_user'] = false;
+        }
+    }
+
+    $ch = curl_init($endpoint);
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_POST => true,
+        CURLOPT_POSTFIELDS => json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+        CURLOPT_HTTPHEADER => [
+            'Content-Type: application/json',
+            'X-API-Key: ' . $apiKey,
+        ],
+        CURLOPT_TIMEOUT => 20,
+    ]);
+
+    $response = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    if (curl_errno($ch)) {
+        $error = curl_error($ch);
+        curl_close($ch);
+
+        return [
+            'success' => false,
+            'message' => $error,
+            'http_code' => $httpCode,
+        ];
+    }
+    curl_close($ch);
+
+    $result = json_decode((string) $response, true);
+    if (!is_array($result)) {
+        return [
+            'success' => false,
+            'message' => 'Invalid response from StarBot.',
+            'http_code' => $httpCode,
+            'raw_response' => $response,
+        ];
+    }
+
+    if (empty($result['success'])) {
+        return [
+            'success' => false,
+            'message' => $result['error'] ?? 'StarBot invoice creation failed.',
+            'error_code' => $result['error_code'] ?? null,
+            'http_code' => $httpCode,
+            'raw_response' => $result,
+        ];
+    }
+
+    $data = $result['data'] ?? [];
+    if (empty($data['payment_url']) || empty($data['invoice_token'])) {
+        return [
+            'success' => false,
+            'message' => 'StarBot response does not include payment URL or invoice token.',
+            'http_code' => $httpCode,
+            'raw_response' => $result,
+        ];
+    }
+
+    return [
+        'success' => true,
+        'payment_url' => $data['payment_url'],
+        'invoice_token' => $data['invoice_token'],
+        'order_code' => $data['order_code'] ?? null,
+        'stars_count' => $data['stars_count'] ?? $starsCount,
+        'total_toman' => $data['total_toman'] ?? null,
+        'total_rial' => $data['total_rial'] ?? null,
+        'expires_at' => $data['expires_at'] ?? null,
+        'raw_response' => $result,
+    ];
+}
 function channel(array $id_channel)
 {
     global $from_id;

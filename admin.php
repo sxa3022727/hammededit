@@ -449,7 +449,10 @@ if (in_array($text, $textadmin) || $datain == "admin") {
             'gettextnowpayment' => $NowPaymentsManage,
             'gettextnowpaymentTRON' => $tronnowpayments,
             'gettextiranpay2' => $Swapinokey,
-            'gettextstartelegram' => $Swapinokey,
+            'gettextstartelegram' => $Startelegram,
+            'starbot_api_base_url' => $Startelegram,
+            'starbot_api_key' => $Startelegram,
+            'starbot_webhook_secret' => $Startelegram,
             'gettextiranpay3' => $trnado,
             'gettextiranpay1' => $iranpaykeyboard,
             'gettextaqayepardakht' => $aqayepardakht,
@@ -12181,6 +12184,47 @@ if ($datain == "settimecornday" && $adminrulecheck['rule'] == "administrator") {
     Editmessagetext($from_id, $message_id, $textbotlang['Admin']['Status']['BotTitle'], $Bot_Status);
 } elseif ($datain == "startelegram") {
     sendmessage($from_id, $textbotlang['users']['selectoption'], $Startelegram, 'HTML');
+} elseif ($text == "🔗 آدرس API استاربوت" && $adminrulecheck['rule'] == "administrator") {
+    $currentBaseUrl = getPaySettingValue('starbot_api_base_url', '0');
+    sendmessage($from_id, "آدرس API استاربوت را ارسال کنید.\n\nنمونه: <code>https://your-server:3000</code>\nیا: <code>https://your-server:3000/api/v1</code>\n\nمقدار فعلی: <code>{$currentBaseUrl}</code>", $backadmin, 'HTML');
+    step("starbot_api_base_url", $from_id);
+} elseif ($user['step'] == "starbot_api_base_url") {
+    $submittedBaseUrl = trim((string) $text);
+    if ($submittedBaseUrl === '') {
+        sendmessage($from_id, "❌ آدرس API نامعتبر است.", $backadmin, 'HTML');
+        return;
+    }
+    update("PaySetting", "ValuePay", rtrim($submittedBaseUrl, '/'), "NamePay", "starbot_api_base_url");
+    sendmessage($from_id, "✅ آدرس API استاربوت ذخیره شد.", $Startelegram, 'HTML');
+    step("home", $from_id);
+} elseif ($text == "🔑 API Key استاربوت" && $adminrulecheck['rule'] == "administrator") {
+    $currentApiKey = getPaySettingValue('starbot_api_key', '0');
+    $currentApiKeyLabel = ($currentApiKey === '0' || $currentApiKey === '') ? 'تنظیم نشده' : 'ثبت شده';
+    sendmessage($from_id, "API Key استاربوت را ارسال کنید.\n\nوضعیت فعلی: <code>{$currentApiKeyLabel}</code>", $backadmin, 'HTML');
+    step("starbot_api_key", $from_id);
+} elseif ($user['step'] == "starbot_api_key") {
+    $submittedApiKey = trim((string) $text);
+    if ($submittedApiKey === '') {
+        sendmessage($from_id, "❌ API Key نامعتبر است.", $backadmin, 'HTML');
+        return;
+    }
+    update("PaySetting", "ValuePay", $submittedApiKey, "NamePay", "starbot_api_key");
+    sendmessage($from_id, "✅ API Key استاربوت ذخیره شد.", $Startelegram, 'HTML');
+    step("home", $from_id);
+} elseif ($text == "🛡 سکرت وبهوک استاربوت" && $adminrulecheck['rule'] == "administrator") {
+    $currentSecret = getPaySettingValue('starbot_webhook_secret', '0');
+    $currentSecretLabel = ($currentSecret === '0' || $currentSecret === '') ? 'تنظیم نشده' : 'ثبت شده';
+    sendmessage($from_id, "Webhook Secret استاربوت را ارسال کنید.\n\nوضعیت فعلی: <code>{$currentSecretLabel}</code>", $backadmin, 'HTML');
+    step("starbot_webhook_secret", $from_id);
+} elseif ($user['step'] == "starbot_webhook_secret") {
+    $submittedSecret = trim((string) $text);
+    if ($submittedSecret === '') {
+        sendmessage($from_id, "❌ Webhook Secret نامعتبر است.", $backadmin, 'HTML');
+        return;
+    }
+    update("PaySetting", "ValuePay", $submittedSecret, "NamePay", "starbot_webhook_secret");
+    sendmessage($from_id, "✅ Webhook Secret استاربوت ذخیره شد.", $Startelegram, 'HTML');
+    step("home", $from_id);
 } elseif ($text == "⬇️ حداقل مبلغ استار") {
     sendmessage($from_id, "📌 حداقل مبلغ واریزی را ارسال نمایید", $backadmin, 'HTML');
     step("getmainaqstar", $from_id);
@@ -13126,6 +13170,4 @@ if ($datain == "settimecornday" && $adminrulecheck['rule'] == "administrator") {
     update("PaySetting", "ValuePay", $text, "NamePay", "marchent_floypay");
     step('home', $from_id);
 }
-
-
 

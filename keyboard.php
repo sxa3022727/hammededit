@@ -1627,6 +1627,8 @@ function keyboardTimeCategory($name_panel,$agent,$callback_data = "producttime_"
 }
 $Startelegram = json_encode([
     'keyboard' => [
+        [['text' => "🔗 آدرس API استاربوت"], ['text' => "🔑 API Key استاربوت"]],
+        [['text' => "🛡 سکرت وبهوک استاربوت"]],
         [['text' => "🗂 نام درگاه استار"]],
         [['text' => "💰 کش بک استار"],['text' => "📚 تنظیم آموزش استار"]],
         [['text' => "⬇️ حداقل مبلغ استار"],['text' => "⬆️ حداکثر مبلغ استار"]],
