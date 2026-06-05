@@ -1,5 +1,7 @@
 <?php
+
 ini_set('error_log', 'error_log');
+
 require_once __DIR__ . '/../config.php';
 require_once __DIR__ . '/../jdf.php';
 require_once __DIR__ . '/../botapi.php';
@@ -8,165 +10,190 @@ require_once __DIR__ . '/../function.php';
 require_once __DIR__ . '/../keyboard.php';
 require_once __DIR__ . '/../panels.php';
 require __DIR__ . '/../vendor/autoload.php';
-use Endroid\QrCode\Builder\Builder;
-use Endroid\QrCode\Encoding\Encoding;
-use Endroid\QrCode\ErrorCorrectionLevel;
-use Endroid\QrCode\Label\Font\OpenSans;
-use Endroid\QrCode\Label\LabelAlignment;
-use Endroid\QrCode\RoundBlockSizeMode;
-use Endroid\QrCode\Writer\PngWriter;
 
 $ManagePanel = new ManagePanel();
-$data = json_decode(file_get_contents("php://input"),true);
-$hashid = htmlspecialchars($data['hashid'], ENT_QUOTES, 'UTF-8');
-$authority = htmlspecialchars($data['authority'], ENT_QUOTES, 'UTF-8');
-$StatusPayment = htmlspecialchars($data['status'], ENT_QUOTES, 'UTF-8');
-$setting = select("setting", "*");  
-$PaySetting = select("PaySetting", "*", "NamePay", "marchent_floypay", "select")['ValuePay'];
-$Payment_reports = select("Payment_report", "*", "id_order", $hashid, "select");
-$invoice_id = $Payment_reports['id_order'];
-$price = $Payment_reports['price'];
-$datatextbotget = select("textbot", "*", null, null, "fetchAll");
-$datatxtbot = array();
-foreach ($datatextbotget as $row) {
-    $datatxtbot[] = array(
-        'id_text' => $row['id_text'],
-        'text' => $row['text']
-    );
+$textbotlang = languagechange(__DIR__ . '/../text.json');
+
+header('Content-Type: application/json; charset=utf-8');
+
+function tetrapay_json_response($statusCode, array $payload)
+{
+    http_response_code($statusCode);
+    echo json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    exit;
 }
-$datatextbot = array(
-    'textafterpay' => '',
-    'textaftertext' => '',
-    'textmanual' => '',
-    'textselectlocation' => '',
-    'text_wgdashboard' => '',
-    'textafterpayibsng' => ''
-);
-foreach ($datatxtbot as $item) {
-    if (isset($datatextbot[$item['id_text']])) {
-        $datatextbot[$item['id_text']] = $item['text'];
-    }
-}
-// verify Transaction
-$dec_payment_status = "";
-$payment_status = "";
-if ($StatusPayment == 100) {
-    $curl = curl_init();
-    $data = [
-        "ApiKey" => $PaySetting,
-        "authority" => $authority,
-        "hashid" => $invoice_id,
+
+function tetrapay_load_payment_texts()
+{
+    $records = select('textbot', '*', null, null, 'fetchAll');
+    $texts = [
+        'textafterpay' => '',
+        'textaftertext' => '',
+        'textmanual' => '',
+        'textselectlocation' => '',
+        'text_wgdashboard' => '',
+        'textafterpayibsng' => '',
     ];
-    curl_setopt_array($curl, array(
-        CURLOPT_URL => "https://tetra98.ir/api/verify",
-        CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_ENCODING => '',
-        CURLOPT_MAXREDIRS => 10,
-        CURLOPT_TIMEOUT => 0,
-        CURLOPT_FOLLOWLOCATION => true,
-        CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-        CURLOPT_POSTFIELDS => json_encode($data),
-        CURLOPT_CUSTOMREQUEST => 'POST',
-        CURLOPT_HTTPHEADER => array(
-            'Content-Type: application/json',
-            'Accept: application/json'
-        ),
-    ));
-    $response = curl_exec($curl);
-    curl_close($curl);
-    $response = json_decode($response, true);
-    if (!empty($response['status']) && $response['status'] == 100) {
-        $payment_status = "پرداخت موفق";
-        $dec_payment_status = "از انجام تراکنش متشکریم!";
-        $Payment_report = select("Payment_report", "*", "id_order", $invoice_id, "select");
-        if ($Payment_report['payment_Status'] != "paid") {
-            $textbotlang = languagechange('../text.json');
-            DirectPayment($invoice_id, "../images.jpg");
-            $pricecashback = select("PaySetting", "ValuePay", "NamePay", "chashbackiranpay1", "select")['ValuePay'];
-            $Balance_id = select("user", "*", "id", $Payment_report['id_user'], "select");
-            if ($pricecashback != "0") {
-                $result = ($Payment_report['price'] * $pricecashback) / 100;
-                $Balance_confrim = intval($Balance_id['Balance']) + $result;
-                update("user", "Balance", $Balance_confrim, "id", $Balance_id['id']);
-                $pricecashback = number_format($pricecashback);
-                $text_report = "🎁 کاربر عزیز مبلغ $result تومان به عنوان هدیه واریز به حساب شما واریز گردید.";
-                sendmessage($Balance_id['id'], $text_report, null, 'HTML');
-            }
-            update("Payment_report", "payment_Status", "paid", "id_order", $Payment_report['id_order']);
-            $paymentreports = select("topicid", "idreport", "report", "paymentreport", "select")['idreport'];
-            $price = number_format($price);
-            $text_report = "💵 پرداخت جدید
-        
-آیدی عددی کاربر : {$Payment_report['id_user']}
-نام کاربری کاربر : {$Balance_id['username']}
-مبلغ تراکنش $price
-روش پرداخت : ارزی ریالی اول";
-            if (strlen($setting['Channel_Report']) > 0) {
-                telegram('sendmessage', [
-                    'chat_id' => $setting['Channel_Report'],
-                    'message_thread_id' => $paymentreports,
-                    'text' => $text_report,
-                    'parse_mode' => "HTML"
-                ]);
+
+    if (is_array($records)) {
+        foreach ($records as $row) {
+            $key = $row['id_text'] ?? null;
+            if ($key !== null && array_key_exists($key, $texts)) {
+                $texts[$key] = $row['text'];
             }
         }
-    } else {
-        $payment_status = "ناموفق";
-        $dec_payment_status = "";
     }
+
+    return $texts;
 }
-?>
-<html>
 
-<head>
-    <title>فاکتور پرداخت</title>
-    <style>
-        @font-face {
-            font-family: 'vazir';
-            src: url('/Vazir.eot');
-            src: local('☺'), url('../fonts/Vazir.woff') format('woff'), url('../fonts/Vazir.ttf') format('truetype');
-        }
+$rawBody = file_get_contents('php://input');
+$payload = json_decode((string) $rawBody, true);
+if (!is_array($payload)) {
+    $payload = $_POST;
+}
 
-        body {
-            font-family: vazir;
-            background-color: #f2f2f2;
-            margin: 0;
-            padding: 20px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-        }
+if (!is_array($payload) || empty($payload)) {
+    tetrapay_json_response(400, [
+        'success' => false,
+        'error' => 'Invalid TetraPay callback payload.',
+    ]);
+}
 
-        .confirmation-box {
-            background-color: #ffffff;
-            border-radius: 8px;
-            width: 25%;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-            padding: 40px;
-            text-align: center;
-        }
+$status = (string) ($payload['status'] ?? '');
+if ($status !== '100') {
+    tetrapay_json_response(200, [
+        'success' => true,
+        'ignored' => true,
+    ]);
+}
 
-        h1 {
-            color: #333333;
-            margin-bottom: 20px;
-        }
+$hashId = trim((string) ($payload['hashid'] ?? $payload['Hash_id'] ?? $payload['hash_id'] ?? ''));
+$authority = trim((string) ($payload['authority'] ?? $payload['Authority'] ?? ''));
 
-        p {
-            color: #666666;
-            margin-bottom: 10px;
-        }
-    </style>
-</head>
+if ($hashId === '' || $authority === '') {
+    tetrapay_json_response(400, [
+        'success' => false,
+        'error' => 'Missing hashid or authority.',
+    ]);
+}
 
-<body>
-    <div class="confirmation-box">
-        <h1><?php echo $payment_status ?></h1>
-        <p>شماره تراکنش:<span><?php echo $invoice_id ?></span></p>
-        <p>مبلغ پرداختی: <span><?php echo $price ?></span>تومان</p>
-        <p>تاریخ: <span> <?php echo jdate('Y/m/d') ?> </span></p>
-        <p><?php echo $dec_payment_status ?></p>
-    </div>
-</body>
+$paymentReport = select('Payment_report', '*', 'id_order', $hashId, 'select');
+if (!is_array($paymentReport)) {
+    tetrapay_json_response(404, [
+        'success' => false,
+        'error' => 'Payment report not found.',
+    ]);
+}
 
-</html>
+if (($paymentReport['Payment_Method'] ?? '') !== 'Currency Rial 1') {
+    tetrapay_json_response(400, [
+        'success' => false,
+        'error' => 'Payment method mismatch.',
+    ]);
+}
+
+if (($paymentReport['payment_Status'] ?? '') === 'paid') {
+    tetrapay_json_response(200, [
+        'success' => true,
+        'already_paid' => true,
+    ]);
+}
+
+$storedMetadata = json_decode((string) ($paymentReport['dec_not_confirmed'] ?? ''), true);
+if (!is_array($storedMetadata)) {
+    $storedMetadata = [
+        'authority' => (string) ($paymentReport['dec_not_confirmed'] ?? ''),
+    ];
+}
+
+$storedAuthority = trim((string) ($storedMetadata['authority'] ?? ''));
+if ($storedAuthority !== '' && !hash_equals($storedAuthority, $authority)) {
+    tetrapay_json_response(409, [
+        'success' => false,
+        'error' => 'Authority mismatch.',
+    ]);
+}
+
+$verifyResponse = verifyTetraPay($authority, $hashId);
+if ((string) ($verifyResponse['status'] ?? '') !== '100') {
+    update('Payment_report', 'dec_not_confirmed', json_encode([
+        'gateway' => 'tetrapay',
+        'error' => 'verify failed',
+        'callback' => $payload,
+        'verify_response' => $verifyResponse,
+    ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), 'id_order', $paymentReport['id_order']);
+
+    tetrapay_json_response(409, [
+        'success' => false,
+        'error' => 'TetraPay verify failed.',
+        'verify_response' => $verifyResponse,
+    ]);
+}
+
+$verifiedAuthority = trim((string) ($verifyResponse['authority'] ?? $verifyResponse['Authority'] ?? ''));
+if ($verifiedAuthority !== '' && !hash_equals($verifiedAuthority, $authority)) {
+    tetrapay_json_response(409, [
+        'success' => false,
+        'error' => 'Verified authority mismatch.',
+    ]);
+}
+
+$verifiedHashId = trim((string) ($verifyResponse['hash_id'] ?? $verifyResponse['Hash_id'] ?? $verifyResponse['hashid'] ?? ''));
+if ($verifiedHashId !== '' && !hash_equals($verifiedHashId, $hashId)) {
+    tetrapay_json_response(409, [
+        'success' => false,
+        'error' => 'Verified hash id mismatch.',
+    ]);
+}
+
+$datatextbot = tetrapay_load_payment_texts();
+$setting = select('setting', '*');
+$paymentreports = select('topicid', 'idreport', 'report', 'paymentreport', 'select')['idreport'] ?? null;
+
+update('Payment_report', 'dec_not_confirmed', json_encode([
+    'gateway' => 'tetrapay',
+    'authority' => $authority,
+    'callback' => $payload,
+    'verify_response' => $verifyResponse,
+    'verified_at' => date('Y/m/d H:i:s'),
+], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), 'id_order', $paymentReport['id_order']);
+
+DirectPayment($paymentReport['id_order'], '../images.jpg');
+
+$pricecashback = select('PaySetting', 'ValuePay', 'NamePay', 'chashbackiranpay1', 'select')['ValuePay'] ?? '0';
+$balanceUser = select('user', '*', 'id', $paymentReport['id_user'], 'select');
+if (is_array($balanceUser) && $pricecashback !== '0') {
+    $cashbackAmount = ($paymentReport['price'] * $pricecashback) / 100;
+    $newBalance = intval($balanceUser['Balance']) + $cashbackAmount;
+    update('user', 'Balance', $newBalance, 'id', $balanceUser['id']);
+    $cashbackText = sprintf($textbotlang['users']['Discount']['gift-deposit'] ?? 'Cashback: %s', $cashbackAmount);
+    sendmessage($balanceUser['id'], $cashbackText, null, 'HTML');
+}
+
+if (is_array($setting) && !empty($setting['Channel_Report']) && is_array($balanceUser)) {
+    $priceFormatted = number_format((int) $paymentReport['price']);
+    $reportText = "TetraPay payment completed\n"
+        . "User ID: {$balanceUser['id']}\n"
+        . "Username: @{$balanceUser['username']}\n"
+        . "Amount: {$priceFormatted} Toman\n"
+        . "Authority: {$authority}\n"
+        . "Method: Currency Rial 1";
+
+    $telegramPayload = [
+        'chat_id' => $setting['Channel_Report'],
+        'text' => $reportText,
+        'parse_mode' => 'HTML',
+    ];
+    if (!empty($paymentreports)) {
+        $telegramPayload['message_thread_id'] = $paymentreports;
+    }
+
+    telegram('sendmessage', $telegramPayload);
+}
+
+update('Payment_report', 'payment_Status', 'paid', 'id_order', $paymentReport['id_order']);
+
+tetrapay_json_response(200, [
+    'success' => true,
+]);

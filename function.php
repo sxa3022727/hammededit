@@ -3232,20 +3232,51 @@ function createInvoiceiranpay1($amount, $id_invoice)
 {
     global $domainhosts;
     $PaySetting = select("PaySetting", "*", "NamePay", "marchent_floypay", "select")['ValuePay'];
-    $curl = curl_init();
-    $amount = intval($amount);
+    $apiKey = trim((string) $PaySetting);
+    if ($apiKey === '' || $apiKey === '0') {
+        return [
+            'status' => '-1',
+            'message' => 'TetraPay ApiKey is not configured.',
+        ];
+    }
+
+    $amountRial = (int) round(((float) $amount) * 10);
+    if ($amountRial <= 0) {
+        return [
+            'status' => '-1',
+            'message' => 'Invalid TetraPay amount.',
+        ];
+    }
+
+    $callbackHost = trim((string) $domainhosts);
+    if ($callbackHost === '') {
+        $callbackHost = $_SERVER['HTTP_HOST'] ?? '';
+    }
+    if ($callbackHost === '') {
+        return [
+            'status' => '-1',
+            'message' => 'Callback host is not configured.',
+        ];
+    }
+    if (!preg_match('~^https?://~i', $callbackHost)) {
+        $callbackHost = 'https://' . ltrim($callbackHost, '/');
+    }
+
     $data = [
-        "ApiKey" => $PaySetting,
+        "ApiKey" => $apiKey,
         "Hash_id" => $id_invoice,
-        "Amount" => $amount . "0",
-        "CallbackURL" => "https://$domainhosts/payment/iranpay1.php"
+        "Amount" => $amountRial,
+        "Description" => "Order {$id_invoice}",
+        "CallbackURL" => rtrim($callbackHost, '/') . "/payment/iranpay1.php"
     ];
+
+    $curl = curl_init();
     curl_setopt_array($curl, array(
-        CURLOPT_URL => "https://tetra98.ir/api/create_order",
+        CURLOPT_URL => "https://tetra98.com/api/create_order",
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_ENCODING => '',
         CURLOPT_MAXREDIRS => 10,
-        CURLOPT_TIMEOUT => 0,
+        CURLOPT_TIMEOUT => 20,
         CURLOPT_FOLLOWLOCATION => true,
         CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
         CURLOPT_CUSTOMREQUEST => 'POST',
@@ -3257,8 +3288,98 @@ function createInvoiceiranpay1($amount, $id_invoice)
     ));
 
     $response = curl_exec($curl);
+    $httpCode = curl_getinfo($curl, CURLINFO_HTTP_CODE);
+    if (curl_errno($curl)) {
+        $error = curl_error($curl);
+        curl_close($curl);
+        return [
+            'status' => '-1',
+            'message' => $error,
+            'http_code' => $httpCode,
+        ];
+    }
     curl_close($curl);
-    return json_decode($response, true);
+    $decoded = json_decode((string) $response, true);
+    if (!is_array($decoded)) {
+        return [
+            'status' => '-1',
+            'message' => 'Invalid response from TetraPay.',
+            'http_code' => $httpCode,
+            'raw_response' => $response,
+        ];
+    }
+
+    return $decoded;
+}
+function verifyTetraPay($authority = null, $hashId = null)
+{
+    $PaySetting = select("PaySetting", "*", "NamePay", "marchent_floypay", "select")['ValuePay'];
+    $apiKey = trim((string) $PaySetting);
+    if ($apiKey === '' || $apiKey === '0') {
+        return [
+            'status' => -1,
+            'message' => 'TetraPay ApiKey is not configured.',
+        ];
+    }
+
+    $payload = [
+        'ApiKey' => $apiKey,
+    ];
+
+    $authority = trim((string) $authority);
+    $hashId = trim((string) $hashId);
+    if ($authority !== '') {
+        $payload['authority'] = $authority;
+    } elseif ($hashId !== '') {
+        $payload['Hash_id'] = $hashId;
+    } else {
+        return [
+            'status' => -1,
+            'message' => 'Missing TetraPay authority or Hash_id.',
+        ];
+    }
+
+    $curl = curl_init();
+    curl_setopt_array($curl, array(
+        CURLOPT_URL => "https://tetra98.com/api/verify",
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_ENCODING => '',
+        CURLOPT_MAXREDIRS => 10,
+        CURLOPT_TIMEOUT => 20,
+        CURLOPT_FOLLOWLOCATION => true,
+        CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+        CURLOPT_CUSTOMREQUEST => 'POST',
+        CURLOPT_POSTFIELDS => json_encode($payload),
+        CURLOPT_HTTPHEADER => array(
+            'accept: application/json',
+            'Content-Type: application/json'
+        ),
+    ));
+
+    $response = curl_exec($curl);
+    $httpCode = curl_getinfo($curl, CURLINFO_HTTP_CODE);
+    if (curl_errno($curl)) {
+        $error = curl_error($curl);
+        curl_close($curl);
+        return [
+            'status' => -1,
+            'message' => $error,
+            'http_code' => $httpCode,
+        ];
+    }
+    curl_close($curl);
+
+    $decoded = json_decode((string) $response, true);
+    if (!is_array($decoded)) {
+        return [
+            'status' => -1,
+            'message' => 'Invalid response from TetraPay verify.',
+            'http_code' => $httpCode,
+            'raw_response' => $response,
+        ];
+    }
+
+    return $decoded;
 }
 function verifyxvoocher($code)
 {

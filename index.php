@@ -5862,16 +5862,6 @@ $textonebuy
         $message_id = sendmessage($from_id, $textnowpayments, $paymentkeyboard, 'HTML');
         updatePaymentMessageId($message_id, $randomString);
     } elseif ($datain == "iranpay1") {
-        $rates = requireTronRates(['TRX', 'USD']);
-        if ($rates === null) {
-            sendmessage($from_id, $textbotlang['users']['Balance']['errorLinkPayment'], $keyboard, 'HTML');
-            step('home', $from_id);
-            return;
-        }
-        $trx = $rates['TRX'];
-        $usd = $rates['USD'];
-        $trxprice = round($user['Processing_value'] / $trx, 2);
-        $usdprice = $user['Processing_value'] / $usd;
         $mainbalanceplisio = select("PaySetting", "ValuePay", "NamePay", "minbalanceiranpay1", "select")['ValuePay'];
         $maxbalanceplisio = select("PaySetting", "ValuePay", "NamePay", "maxbalanceiranpay1", "select")['ValuePay'];
         if ($user['Processing_value'] < $mainbalanceplisio || $user['Processing_value'] > $maxbalanceplisio) {
@@ -5891,8 +5881,9 @@ $textonebuy
         $stmt->bind_param("sssssss", $from_id, $randomString, $dateacc, $user['Processing_value'], $payment_Status, $Payment_Method, $invoice);
         $stmt->execute();
         $pay = createInvoiceiranpay1($user['Processing_value'], $randomString);
-        if ($pay['status'] != "100") {
-            $text_error = $pay['message'];
+        if (!is_array($pay) || (string) ($pay['status'] ?? '') !== "100" || empty($pay['Authority'])) {
+            $text_error = json_encode($pay, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+            update("Payment_report", "dec_not_confirmed", $text_error, "id_order", $randomString);
             sendmessage($from_id, $textbotlang['users']['Balance']['errorLinkPayment'], $keyboard, 'HTML');
             step('home', $from_id);
             $ErrorsLinkPayment = "
@@ -5912,11 +5903,24 @@ $textonebuy
             }
             return;
         }
-        update("Payment_report", "dec_not_confirmed", $pay['Authority'], "id_order", $randomString);
+        $paymentUrl = $pay['payment_url_web'] ?? null;
+        if (empty($paymentUrl) && !empty($pay['Authority'])) {
+            $paymentUrl = "https://tetra98.com/payment/" . $pay['Authority'];
+        }
+        $tetraMetadata = [
+            'gateway' => 'tetrapay',
+            'authority' => $pay['Authority'],
+            'tracking_id' => $pay['tracking_id'] ?? null,
+            'payment_url_web' => $pay['payment_url_web'] ?? $paymentUrl,
+            'payment_url_bot' => $pay['payment_url_bot'] ?? null,
+            'amount_rial' => (int) round(((float) $user['Processing_value']) * 10),
+            'raw_create_response' => $pay,
+        ];
+        update("Payment_report", "dec_not_confirmed", json_encode($tetraMetadata, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), "id_order", $randomString);
         $paymentkeyboard = json_encode([
             'inline_keyboard' => [
                 [
-                    ['text' => "پرداخت", 'url' => $pay['payment_url_web']]
+                    ['text' => "پرداخت", 'url' => $paymentUrl]
                 ]
             ]
         ]);
