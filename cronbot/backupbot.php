@@ -294,12 +294,12 @@ try {
             'chat_id' => $setting['Channel_Report'],
             'message_thread_id' => $reportbackup,
             'document' => new CURLFile($zip_file_name),
-            'caption' => "📦 خروجی دیتابیس ربات اصلی\n\nبرای حمایت از این پروژه، لطفاً در گیت‌هاب به آن ستاره (Star) دهید.\n⭐ https://github.com/Mmd-Amir/mirza_pro",
+            'caption' => "📦 خروجی دیتابیس ربات اصلی",
         ]);
 
         logMessage('INFO', 'Telegram sendDocument for DB backup attempted', [
             'result' => $sendResult ? 'success' : 'failed',
-            'caption_length' => strlen("📦 خروجی دیتابیس ربات اصلی\n\nبرای حمایت از این پروژه، لطفاً در گیت‌هاب به آن ستاره (Star) دهید.\n⭐ https://github.com/Mmd-Amir/mirza_pro"),
+            'caption_length' => strlen("📦 خروجی دیتابیس ربات اصلی"),
         ]);
         if (file_exists($zip_file_name)) {
             unlink($zip_file_name);
