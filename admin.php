@@ -1,15 +1,12 @@
 <?php
 $textadmin = ["panel", "/panel", $textbotlang['Admin']['textpaneladmin']];
-$text_panel_admin_login_template = "💎 | Version Debug Bot: 3.8
-📌 | Version Debug Mini App: 1.1
+$text_panel_admin_login_template = "💎 | HI DEAR...
 
-<blockquote>🔹 | این ربات کاملاً رایگان است و توسط توسعه‌دهنده میرزا عرضه شده و توسط Mmd | Amir دیباگ شده است.</blockquote>
+<blockquote>سلام</blockquote>
 
-<blockquote><a href=\"https://github.com/Mmd-Amir/mirza_pro\" style=\"color:#1e88ff;\">گیت هاب دیباگ کننده</a></blockquote>
+<blockquote>🔹 | ویرایش و بهینه ربات توسط: </blockquote>
 
-<blockquote>🔹 | هرگونه فروش یا دریافت وجه بابت این ربات تخلف محسوب می‌شود.</blockquote>
-
-<blockquote>🔹 | در صورت مشاهدهٔ فروش یا دریافت وجه، لطفاً وجه خود را پیگیری کرده و بازپس‌گیری نمایید.</blockquote>
+<blockquote>🔹 | @timberhik </blockquote>
 ";
 
 if (!in_array($from_id, $admin_ids))
