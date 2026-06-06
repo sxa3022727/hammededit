@@ -858,6 +858,15 @@ function setPaySettingValue($name, $value)
     return $stmt->execute([(string) $name, $valueToStore, $valueToStore]);
 }
 
+function setTextBotValue($idText, $text)
+{
+    global $pdo;
+
+    $textToStore = normaliseUpdateValue($text);
+    $stmt = $pdo->prepare("INSERT INTO textbot (id_text, `text`) VALUES (?, ?) ON DUPLICATE KEY UPDATE `text` = ?");
+    return $stmt->execute([(string) $idText, $textToStore, $textToStore]);
+}
+
 function formatPaymentReportNote($rawNote)
 {
     if ($rawNote === null) {
@@ -1356,6 +1365,163 @@ function createPayStarBot($starsCount, $orderId, $userId)
         'raw_response' => $result,
     ];
 }
+
+function buildTetraminatorApiUrl($path)
+{
+    $baseUrl = trim((string) getPaySettingValue('tetraminator_api_base_url', 'http://136.244.104.77:5000'));
+    if ($baseUrl === '' || $baseUrl === '0') {
+        return '';
+    }
+
+    if (!preg_match('~^https?://~i', $baseUrl)) {
+        $baseUrl = 'http://' . ltrim($baseUrl, '/');
+    }
+
+    $baseUrl = rtrim($baseUrl, '/');
+    $baseUrl = preg_replace('~/invoice/create$~i', '', $baseUrl);
+    if (!preg_match('~/api/v1$~i', $baseUrl)) {
+        $baseUrl .= '/api/v1';
+    }
+
+    return $baseUrl . '/' . ltrim($path, '/');
+}
+
+function createTetraminatorCallbackToken($orderId, $apiKey = null)
+{
+    $secret = trim((string) ($apiKey ?? getPaySettingValue('tetraminator_api_key', '')));
+    if ($secret === '' || $secret === '0') {
+        return '';
+    }
+
+    return hash_hmac('sha256', (string) $orderId, $secret);
+}
+
+function buildTetraminatorCallbackUrl($orderId, $token)
+{
+    global $domainhosts;
+
+    $host = trim((string) $domainhosts);
+    if ($host === '') {
+        $host = $_SERVER['HTTP_HOST'] ?? '';
+    }
+    if ($host === '') {
+        return '';
+    }
+
+    if (!preg_match('~^https?://~i', $host)) {
+        $host = 'https://' . ltrim($host, '/');
+    }
+
+    return rtrim($host, '/') . '/payment/tetraminator.php?token=' . rawurlencode((string) $token) . '&invoice_id=' . rawurlencode((string) $orderId);
+}
+
+function createPayTetraminator($amount, $orderId)
+{
+    $apiKey = trim((string) getPaySettingValue('tetraminator_api_key', ''));
+    if ($apiKey === '' || $apiKey === '0') {
+        return [
+            'success' => false,
+            'message' => 'Tetraminator API key is not configured.',
+        ];
+    }
+
+    $endpoint = buildTetraminatorApiUrl('/invoice/create');
+    if ($endpoint === '') {
+        return [
+            'success' => false,
+            'message' => 'Tetraminator API base URL is not configured.',
+        ];
+    }
+
+    $normalizedAmount = str_replace(',', '', (string) $amount);
+    if (!is_numeric($normalizedAmount)) {
+        return [
+            'success' => false,
+            'message' => 'Invalid Tetraminator amount.',
+        ];
+    }
+
+    $price = (int) round((float) $normalizedAmount);
+    if ($price <= 0) {
+        return [
+            'success' => false,
+            'message' => 'Invalid Tetraminator amount.',
+        ];
+    }
+
+    $callbackToken = createTetraminatorCallbackToken($orderId, $apiKey);
+    $callbackUrl = buildTetraminatorCallbackUrl($orderId, $callbackToken);
+    if ($callbackUrl === '') {
+        return [
+            'success' => false,
+            'message' => 'Callback host is not configured.',
+        ];
+    }
+
+    $payload = [
+        'price' => $price,
+        'callback_url' => $callbackUrl,
+    ];
+
+    $ch = curl_init($endpoint);
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_POST => true,
+        CURLOPT_POSTFIELDS => json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+        CURLOPT_HTTPHEADER => [
+            'Content-Type: application/json',
+            'X-API-KEY: ' . $apiKey,
+        ],
+        CURLOPT_TIMEOUT => 20,
+    ]);
+
+    $response = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    if (curl_errno($ch)) {
+        $error = curl_error($ch);
+        curl_close($ch);
+
+        return [
+            'success' => false,
+            'message' => $error,
+            'http_code' => $httpCode,
+        ];
+    }
+    curl_close($ch);
+
+    $result = json_decode((string) $response, true);
+    if (!is_array($result)) {
+        return [
+            'success' => false,
+            'message' => 'Invalid response from Tetraminator.',
+            'http_code' => $httpCode,
+            'raw_response' => $response,
+        ];
+    }
+
+    $status = $result['status'] ?? null;
+    $isSuccessful = $status === true || strtolower((string) $status) === 'true';
+    if (!$isSuccessful || empty($result['pay_id']) || empty($result['payment_link'])) {
+        return [
+            'success' => false,
+            'message' => $result['message'] ?? 'Tetraminator invoice creation failed.',
+            'http_code' => $httpCode,
+            'raw_response' => $result,
+        ];
+    }
+
+    return [
+        'success' => true,
+        'pay_id' => $result['pay_id'],
+        'payment_link' => $result['payment_link'],
+        'callback_url' => $callbackUrl,
+        'callback_token' => $callbackToken,
+        'price' => $price,
+        'http_code' => $httpCode,
+        'raw_response' => $result,
+    ];
+}
+
 function channel(array $id_channel)
 {
     global $from_id;

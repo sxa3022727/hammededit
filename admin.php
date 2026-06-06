@@ -447,10 +447,13 @@ if (in_array($text, $textadmin) || $datain == "admin") {
             'gettextnowpaymentTRON' => $tronnowpayments,
             'gettextiranpay2' => $Swapinokey,
             'gettextstartelegram' => $Startelegram,
+            'gettexttetraminator' => $tetraminatorKeyboard,
             'starbot_api_base_url' => $Startelegram,
             'starbot_api_key' => $Startelegram,
             'starbot_webhook_secret' => $Startelegram,
             'star_price_toman' => $Startelegram,
+            'tetraminator_api_base_url' => $tetraminatorKeyboard,
+            'tetraminator_api_key' => $tetraminatorKeyboard,
             'gettextiranpay3' => $trnado,
             'gettextiranpay1' => $iranpaykeyboard,
             'gettextaqayepardakht' => $aqayepardakht,
@@ -497,6 +500,10 @@ if (in_array($text, $textadmin) || $datain == "admin") {
             'maxbalancenowpayment' => $nowpayment_setting_keyboard,
             'gethelpstar' => $Startelegram,
             'chashbackstar' => $Startelegram,
+            'gethelptetraminator' => $tetraminatorKeyboard,
+            'chashbacktetraminator' => $tetraminatorKeyboard,
+            'getmaintetraminator' => $tetraminatorKeyboard,
+            'getmaxtetraminator' => $tetraminatorKeyboard,
         ];
 
         $productStepKeyboardMap = [
@@ -776,6 +783,7 @@ if (in_array($text, $textadmin) || $datain == "admin") {
             'Currency Rial 3' => $datatextbot['iranpay1'] ?? 'Currency Rial 3',
             'paymentnotverify' => $datatextbot['textpaymentnotverify'] ?? 'paymentnotverify',
             'Star Telegram' => $datatextbot['text_star_telegram'] ?? 'Star Telegram',
+            'Tetraminator' => $datatextbot['tetraminator'] ?? 'Tetraminator',
         ];
 
         foreach ($statispay as $tracepay) {
@@ -9003,6 +9011,7 @@ if ($datain == "settimecornremove" && $adminrulecheck['rule'] == "administrator"
     $paymentstatussnotverify = getPaySettingValue('paymentstatussnotverify', 'offpaymentstatus');
     $paymentsstartelegram = getPaySettingValue('statusstar', '0');
     $payment_status_nowpayment = getPaySettingValue('statusnowpayment', '0');
+    $tetraminator = getPaySettingValue('tetraminatorstatus', 'offtetraminator');
     $cartotcartstatus = [
         'oncard' => $textbotlang['Admin']['Status']['statuson'],
         'offcard' => $textbotlang['Admin']['Status']['statusoff']
@@ -9047,6 +9056,10 @@ if ($datain == "settimecornremove" && $adminrulecheck['rule'] == "administrator"
         '1' => $textbotlang['Admin']['Status']['statuson'],
         '0' => $textbotlang['Admin']['Status']['statusoff']
     ][$payment_status_nowpayment];
+    $tetraminatorstatus = [
+        'ontetraminator' => $textbotlang['Admin']['Status']['statuson'],
+        'offtetraminator' => $textbotlang['Admin']['Status']['statusoff']
+    ][$tetraminator] ?? $textbotlang['Admin']['Status']['statusoff'];
     $Bot_Status = json_encode([
         'inline_keyboard' => [
             [
@@ -9108,6 +9121,11 @@ if ($datain == "settimecornremove" && $adminrulecheck['rule'] == "administrator"
                 ['text' => "⚙️ تنظیمات", 'callback_data' => "startelegram"],
                 ['text' => $paymentstar, 'callback_data' => "editpayment-startelegram-$paymentsstartelegram"],
                 ['text' => "💫Star Telegram", 'callback_data' => "none"],
+            ],
+            [
+                ['text' => "⚙️ تنظیمات", 'callback_data' => "tetraminatorpaysetting"],
+                ['text' => $tetraminatorstatus, 'callback_data' => "editpayment-tetraminator-$tetraminator"],
+                ['text' => "🤖 تترامیناتور", 'callback_data' => "none"],
             ],
             [
                 ['text' => "⬆️ حداکثر شارژ موجودی", 'callback_data' => "maxbalanceaccount"],
@@ -9234,6 +9252,13 @@ n2", $backadmin, 'HTML');
             $valuenew = "1";
         }
         update("PaySetting", "ValuePay", $valuenew, "NamePay", "statusnowpayment");
+    } elseif ($type == "tetraminator") {
+        if ($value == "ontetraminator") {
+            $valuenew = "offtetraminator";
+        } else {
+            $valuenew = "ontetraminator";
+        }
+        setPaySettingValue("tetraminatorstatus", $valuenew);
     }
     $zarinpal = getPaySettingValue('zarinpalstatus', 'offzarinpal');
     $cartotcart = getPaySettingValue('Cartstatus', 'offcard');
@@ -9247,6 +9272,7 @@ n2", $backadmin, 'HTML');
     $paymentstatussnotverify = getPaySettingValue('paymentstatussnotverify', 'offpaymentstatus');
     $paymentsstartelegram = getPaySettingValue('statusstar', '0');
     $payment_status_nowpayment = getPaySettingValue('statusnowpayment', '0');
+    $tetraminator = getPaySettingValue('tetraminatorstatus', 'offtetraminator');
     $cartotcartstatus = [
         'oncard' => $textbotlang['Admin']['Status']['statuson'],
         'offcard' => $textbotlang['Admin']['Status']['statusoff']
@@ -9291,6 +9317,10 @@ n2", $backadmin, 'HTML');
         '1' => $textbotlang['Admin']['Status']['statuson'],
         '0' => $textbotlang['Admin']['Status']['statusoff']
     ][$payment_status_nowpayment];
+    $tetraminatorstatus = [
+        'ontetraminator' => $textbotlang['Admin']['Status']['statuson'],
+        'offtetraminator' => $textbotlang['Admin']['Status']['statusoff']
+    ][$tetraminator] ?? $textbotlang['Admin']['Status']['statusoff'];
     $Bot_Status = json_encode([
         'inline_keyboard' => [
             [
@@ -9352,6 +9382,11 @@ n2", $backadmin, 'HTML');
                 ['text' => "⚙️ تنظیمات", 'callback_data' => "startelegram"],
                 ['text' => $paymentstar, 'callback_data' => "editpayment-startelegram-$paymentsstartelegram"],
                 ['text' => "💫Star Telegram", 'callback_data' => "none"],
+            ],
+            [
+                ['text' => "⚙️ تنظیمات", 'callback_data' => "tetraminatorpaysetting"],
+                ['text' => $tetraminatorstatus, 'callback_data' => "editpayment-tetraminator-$tetraminator"],
+                ['text' => "🤖 تترامیناتور", 'callback_data' => "none"],
             ],
             [
                 ['text' => "⬆️ حداکثر شارژ موجودی", 'callback_data' => "maxbalanceaccount"],
@@ -12180,6 +12215,117 @@ if ($datain == "settimecornday" && $adminrulecheck['rule'] == "administrator") {
     ];
     $Bot_Status = json_encode($Bot_Status);
     Editmessagetext($from_id, $message_id, $textbotlang['Admin']['Status']['BotTitle'], $Bot_Status);
+} elseif ($datain == "tetraminatorpaysetting" && $adminrulecheck['rule'] == "administrator") {
+    sendmessage($from_id, $textbotlang['users']['selectoption'], $tetraminatorKeyboard, 'HTML');
+} elseif ($text == "🔗 آدرس API تترامیناتور" && $adminrulecheck['rule'] == "administrator") {
+    $currentBaseUrl = getPaySettingValue('tetraminator_api_base_url', 'http://136.244.104.77:5000');
+    sendmessage($from_id, "آدرس API تترامیناتور را ارسال کنید.\n\nنمونه: <code>http://136.244.104.77:5000</code>\nیا: <code>http://136.244.104.77:5000/api/v1</code>\n\nمقدار فعلی: <code>{$currentBaseUrl}</code>", $backadmin, 'HTML');
+    step("tetraminator_api_base_url", $from_id);
+} elseif ($user['step'] == "tetraminator_api_base_url") {
+    $submittedBaseUrl = trim((string) $text);
+    if ($submittedBaseUrl === '') {
+        sendmessage($from_id, "❌ آدرس API نامعتبر است.", $backadmin, 'HTML');
+        return;
+    }
+    setPaySettingValue("tetraminator_api_base_url", rtrim($submittedBaseUrl, '/'));
+    sendmessage($from_id, "✅ آدرس API تترامیناتور ذخیره شد.", $tetraminatorKeyboard, 'HTML');
+    step("home", $from_id);
+} elseif ($text == "🔑 API Key تترامیناتور" && $adminrulecheck['rule'] == "administrator") {
+    $currentApiKey = getPaySettingValue('tetraminator_api_key', '0');
+    $currentApiKeyLabel = ($currentApiKey === '0' || $currentApiKey === '') ? 'تنظیم نشده' : 'ثبت شده';
+    sendmessage($from_id, "API Key تترامیناتور را ارسال کنید.\n\nوضعیت فعلی: <code>{$currentApiKeyLabel}</code>", $backadmin, 'HTML');
+    step("tetraminator_api_key", $from_id);
+} elseif ($user['step'] == "tetraminator_api_key") {
+    $submittedApiKey = trim((string) $text);
+    if ($submittedApiKey === '') {
+        sendmessage($from_id, "❌ API Key نامعتبر است.", $backadmin, 'HTML');
+        return;
+    }
+    setPaySettingValue("tetraminator_api_key", $submittedApiKey);
+    sendmessage($from_id, "✅ API Key تترامیناتور ذخیره شد.", $tetraminatorKeyboard, 'HTML');
+    step("home", $from_id);
+} elseif ($text == "🗂 نام درگاه تترامیناتور" && $adminrulecheck['rule'] == "administrator") {
+    sendmessage($from_id, "📌 نام نمایشی درگاه تترامیناتور را ارسال کنید.", $backadmin, 'HTML');
+    step("gettexttetraminator", $from_id);
+} elseif ($user['step'] == "gettexttetraminator") {
+    $submittedName = trim((string) $text);
+    if ($submittedName === '') {
+        sendmessage($from_id, "❌ نام درگاه نمی‌تواند خالی باشد.", $backadmin, 'HTML');
+        return;
+    }
+    setTextBotValue("tetraminator", $submittedName);
+    sendmessage($from_id, "✅ نام درگاه تترامیناتور ذخیره شد.", $tetraminatorKeyboard, 'HTML');
+    step("home", $from_id);
+} elseif ($text == "⬇️ حداقل مبلغ تترامیناتور" && $adminrulecheck['rule'] == "administrator") {
+    sendmessage($from_id, "📌 حداقل مبلغ واریزی تترامیناتور را به تومان ارسال کنید.", $backadmin, 'HTML');
+    step("getmaintetraminator", $from_id);
+} elseif ($user['step'] == "getmaintetraminator") {
+    $submittedMin = str_replace(',', '', trim((string) $text));
+    if (!ctype_digit($submittedMin)) {
+        sendmessage($from_id, $textbotlang['Admin']['agent']['invalidvlue'], $backadmin, 'HTML');
+        return;
+    }
+    setPaySettingValue("minbalancetetraminator", $submittedMin);
+    sendmessage($from_id, "✅ حداقل مبلغ تترامیناتور ذخیره شد.", $tetraminatorKeyboard, 'HTML');
+    step("home", $from_id);
+} elseif ($text == "⬆️ حداکثر مبلغ تترامیناتور" && $adminrulecheck['rule'] == "administrator") {
+    sendmessage($from_id, "📌 حداکثر مبلغ واریزی تترامیناتور را به تومان ارسال کنید.", $backadmin, 'HTML');
+    step("getmaxtetraminator", $from_id);
+} elseif ($user['step'] == "getmaxtetraminator") {
+    $submittedMax = str_replace(',', '', trim((string) $text));
+    if (!ctype_digit($submittedMax)) {
+        sendmessage($from_id, $textbotlang['Admin']['agent']['invalidvlue'], $backadmin, 'HTML');
+        return;
+    }
+    setPaySettingValue("maxbalancetetraminator", $submittedMax);
+    sendmessage($from_id, "✅ حداکثر مبلغ تترامیناتور ذخیره شد.", $tetraminatorKeyboard, 'HTML');
+    step("home", $from_id);
+} elseif ($text == "💰 کش بک تترامیناتور" && $adminrulecheck['rule'] == "administrator") {
+    sendmessage($from_id, "📌 درصد کش‌بک تترامیناتور را ارسال کنید. برای غیرفعال کردن عدد 0 را بفرستید.", $backadmin, 'HTML');
+    step("chashbacktetraminator", $from_id);
+} elseif ($user['step'] == "chashbacktetraminator") {
+    $submittedCashback = str_replace(',', '', trim((string) $text));
+    if (!ctype_digit($submittedCashback)) {
+        sendmessage($from_id, $textbotlang['Admin']['agent']['invalidvlue'], $backadmin, 'HTML');
+        return;
+    }
+    setPaySettingValue("chashbacktetraminator", $submittedCashback);
+    sendmessage($from_id, "✅ کش‌بک تترامیناتور ذخیره شد.", $tetraminatorKeyboard, 'HTML');
+    step("home", $from_id);
+} elseif ($text == "📚 تنظیم آموزش تترامیناتور" && $adminrulecheck['rule'] == "administrator") {
+    sendmessage($from_id, "📌 آموزش تترامیناتور را ارسال کنید.\n1 - برای نمایش ندادن آموزش عدد 2 را ارسال کنید\n2 - آموزش می‌تواند متن، عکس یا ویدیو باشد.", $backadmin, 'HTML');
+    step("gethelptetraminator", $from_id);
+} elseif ($user['step'] == "gethelptetraminator") {
+    if ($text) {
+        if (intval($text) == 2) {
+            setPaySettingValue("helptetraminator", "2");
+        } else {
+            $data = json_encode([
+                'type' => "text",
+                'text' => $text
+            ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+            setPaySettingValue("helptetraminator", $data);
+        }
+    } elseif ($photo) {
+        $data = json_encode([
+            'type' => "photo",
+            'text' => $caption,
+            'photoid' => $photoid
+        ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        setPaySettingValue("helptetraminator", $data);
+    } elseif ($video) {
+        $data = json_encode([
+            'type' => "video",
+            'text' => $caption,
+            'videoid' => $videoid
+        ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        setPaySettingValue("helptetraminator", $data);
+    } else {
+        sendmessage($from_id, "❌ محتوای ارسال‌شده نامعتبر است.", $backadmin, 'HTML');
+        return;
+    }
+    step('home', $from_id);
+    sendmessage($from_id, "✅ آموزش تترامیناتور ذخیره شد.", $tetraminatorKeyboard, 'HTML');
 } elseif ($datain == "startelegram") {
     sendmessage($from_id, $textbotlang['users']['selectoption'], $Startelegram, 'HTML');
 } elseif ($text == "🔗 آدرس API استاربوت" && $adminrulecheck['rule'] == "administrator") {

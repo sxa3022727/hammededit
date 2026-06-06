@@ -328,6 +328,7 @@ $datatextbot = array(
     'zarinpal' => '',
     'textpaymentnotverify' => "",
     'text_star_telegram' => '',
+    'tetraminator' => '',
     'text_extend' => '',
     'text_wgdashboard' => '',
     'text_Discount' => '',
@@ -6260,6 +6261,81 @@ $textonebuy
             }
         }
         $message_id =sendmessage($from_id, $textnowpayments, $paymentkeyboard, 'HTML');
+        updatePaymentMessageId($message_id, $randomString);
+    } elseif ($datain == "tetraminator") {
+        $mainbalance = (float) str_replace(',', '', (string) getPaySettingValue('minbalancetetraminator', '20000'));
+        $maxbalance = (float) str_replace(',', '', (string) getPaySettingValue('maxbalancetetraminator', '1000000'));
+        $requestedAmount = (float) str_replace(',', '', (string) $user['Processing_value']);
+        if ($requestedAmount < $mainbalance || $requestedAmount > $maxbalance) {
+            $mainbalanceText = number_format($mainbalance);
+            $maxbalanceText = number_format($maxbalance);
+            sendmessage($from_id, "❌ حداقل مبلغ واریزی این روش پرداخت باید $mainbalanceText و حداکثر $maxbalanceText تومان باشد", null, 'HTML');
+            return;
+        }
+        deletemessage($from_id, $message_id);
+        sendmessage($from_id, $textbotlang['users']['Balance']['linkpayments'], $keyboard, 'HTML');
+        $dateacc = date('Y/m/d H:i:s');
+        $randomString = bin2hex(random_bytes(5));
+        $invoice = "{$user['Processing_value_tow']}|{$user['Processing_value_one']}";
+        $stmt = $connect->prepare("INSERT INTO Payment_report (id_user,id_order,time,price,payment_Status,Payment_Method,id_invoice) VALUES (?,?,?,?,?,?,?)");
+        $payment_Status = "Unpaid";
+        $Payment_Method = "Tetraminator";
+        $stmt->bind_param("sssssss", $from_id, $randomString, $dateacc, $user['Processing_value'], $payment_Status, $Payment_Method, $invoice);
+        $stmt->execute();
+        $pay = createPayTetraminator($user['Processing_value'], $randomString);
+        if (empty($pay['success'])) {
+            $text_error = json_encode($pay, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+            update("Payment_report", "dec_not_confirmed", $text_error, "id_order", $randomString);
+            sendmessage($from_id, $textbotlang['users']['Balance']['errorLinkPayment'], $keyboard, 'HTML');
+            step('home', $from_id);
+            if (strlen($setting['Channel_Report'] ?? '') > 0) {
+                telegram('sendmessage', [
+                    'chat_id' => $setting['Channel_Report'],
+                    'message_thread_id' => $errorreport,
+                    'text' => "Tetraminator payment link error\n\nUser ID: $from_id\nPayment method: $Payment_Method\nError: $text_error",
+                    'parse_mode' => "HTML"
+                ]);
+            }
+            return;
+        }
+        $tetraminatorMetadata = [
+            'gateway' => 'tetraminator',
+            'pay_id' => $pay['pay_id'] ?? null,
+            'payment_link' => $pay['payment_link'] ?? null,
+            'callback_url' => $pay['callback_url'] ?? null,
+            'callback_token' => $pay['callback_token'] ?? null,
+            'price' => $pay['price'] ?? (int) $requestedAmount,
+            'raw_create_response' => $pay['raw_response'] ?? null,
+        ];
+        update("Payment_report", "dec_not_confirmed", json_encode($tetraminatorMetadata, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), "id_order", $randomString);
+        $paymentkeyboard = json_encode([
+            'inline_keyboard' => [
+                [
+                    ['text' => $textbotlang['users']['Balance']['payments'], 'url' => $pay['payment_link']]
+                ]
+            ]
+        ]);
+        $pricetoman = number_format($user['Processing_value'], 0);
+        $texttetraminator = "✅ فاکتور پرداخت تترامیناتور ایجاد شد.
+
+🛒 کد پیگیری: <code>$randomString</code>
+💲 مبلغ تراکنش: <code>$pricetoman</code> تومان
+
+پس از پرداخت موفق، شارژ حساب به صورت خودکار انجام می‌شود.
+
+برای پرداخت از دکمه زیر استفاده کنید.";
+        $gethelp = getPaySettingValue('helptetraminator', '2');
+        if ($gethelp !== null && $gethelp != 2) {
+            $data = json_decode($gethelp, true);
+            if (is_array($data) && ($data['type'] ?? '') == "text") {
+                sendmessage($from_id, $data['text'] ?? '', null, 'HTML');
+            } elseif (is_array($data) && ($data['type'] ?? '') == "photo") {
+                sendphoto($from_id, $data['photoid'] ?? '', $data['text'] ?? null);
+            } elseif (is_array($data) && ($data['type'] ?? '') == "video") {
+                sendvideo($from_id, $data['videoid'] ?? '', $data['text'] ?? null);
+            }
+        }
+        $message_id = sendmessage($from_id, $texttetraminator, $paymentkeyboard, 'HTML');
         updatePaymentMessageId($message_id, $randomString);
     } elseif ($datain == "startelegrams") {
         $starPriceToman = str_replace(',', '', (string) getPaySettingValue('star_price_toman', '5000'));

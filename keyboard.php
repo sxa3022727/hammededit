@@ -53,6 +53,7 @@ $datatextbot = array(
     'textpanelagent' => '',
     'text_wheel_luck' => '',
     'text_star_telegram' => "",
+    'tetraminator' => '',
     'text_extend' => '',
     'textsnowpayment' => ''
 
@@ -340,6 +341,7 @@ $arzireyali3 = getPaySettingValue("statusiranpay3");
 $paymentstatussnotverify = getPaySettingValue("paymentstatussnotverify");
 $paymentsstartelegram = getPaySettingValue("statusstar");
 $payment_status_nowpayment = getPaySettingValue("statusnowpayment");
+$tetraminatorStatus = getPaySettingValue("tetraminatorstatus");
 $step_payment = [
     'inline_keyboard' => []
     ];
@@ -415,6 +417,15 @@ $step_payment = [
      $step_payment['inline_keyboard'][] = [
             ['text' => $datatextbot['text_star_telegram'] , 'callback_data' => "startelegrams" ]
     ];   
+    }
+    if($tetraminatorStatus == "ontetraminator"){
+        $tetraminatorLabel = trim($datatextbot['tetraminator'] ?? '');
+        if($tetraminatorLabel === ''){
+            $tetraminatorLabel = '🤖 تترامیناتور';
+        }
+        $step_payment['inline_keyboard'][] = [
+            ['text' => $tetraminatorLabel, 'callback_data' => "tetraminator"]
+        ];
     }
     $step_payment['inline_keyboard'][] = [
             ['text' => "❌ بستن لیست" , 'callback_data' => "colselist" ]
@@ -1637,6 +1648,16 @@ $Startelegram = json_encode([
     ],
     'resize_keyboard' => true
 ]);
+$tetraminatorKeyboard = json_encode([
+    'keyboard' => [
+        [['text' => "🔗 آدرس API تترامیناتور"], ['text' => "🔑 API Key تترامیناتور"]],
+        [['text' => "🗂 نام درگاه تترامیناتور"]],
+        [['text' => "💰 کش بک تترامیناتور"], ['text' => "📚 تنظیم آموزش تترامیناتور"]],
+        [['text' => "⬇️ حداقل مبلغ تترامیناتور"], ['text' => "⬆️ حداکثر مبلغ تترامیناتور"]],
+        [['text' => $textbotlang['Admin']['backadmin']], ['text' => $textbotlang['Admin']['backmenu']]]
+    ],
+    'resize_keyboard' => true
+], JSON_UNESCAPED_UNICODE);
 $keyboardchangelimit = json_encode([
     'keyboard' => [
         [['text' => "🆓 محدودیت رایگان"],['text' => "↙️ محدودیت کلی"]],
